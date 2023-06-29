@@ -23,10 +23,11 @@ func NewServer(addr string) *RPCServer {
 
 // Register the name of the function and its entries
 func (s *RPCServer) Register(fnName string, fFunc interface{}) {
+	// 如果 fnName 已被注册，则 s.funcs[fnName] 返回true，退出函数
 	if _, ok := s.funcs[fnName]; ok {
 		return
 	}
-
+	// 如果fnName未被注册，则将其添加到 s.funcs
 	s.funcs[fnName] = reflect.ValueOf(fFunc)
 }
 
@@ -42,24 +43,27 @@ func (s *RPCServer) Execute(req dataserial.RPCdata) dataserial.RPCdata {
 	}
 
 	log.Printf("func %s is called\n", req.Name)
-	// unpack request arguments
+	// unpack request arguments 提取调用函数req中传入的各个参数到inArgs
 	inArgs := make([]reflect.Value, len(req.Args))
 	for i := range req.Args {
 		inArgs[i] = reflect.ValueOf(req.Args[i])
 	}
 
-	// invoke requested method
+	// invoke requested method  执行函数得到结果out
 	out := f.Call(inArgs)
 	// now since we have followed the function signature style where last argument will be an error
-	// so we will pack the response arguments expect error.
+	// so we will pack the response arguments expect error.	最后一个参数是error，所以长度为len(out)-1
 	resArgs := make([]interface{}, len(out)-1)
 	for i := 0; i < len(out)-1; i++ {
 		// Interface returns the constant value stored in v as an interface{}.
+		// out[i] 是一个 reflect.Value 类型的值，通过 out[i].Interface() 将其转换为 interface{}
 		resArgs[i] = out[i].Interface()
 	}
 
 	// pack error argument
 	var er string
+	// 通过 (error) 类型断言将其转换为 error 类型；
+	// 如果转换成功，ok 将被设置为 true，表示接口值属于 error 类型，即f.Call(inArgs)执行出错
 	if _, ok := out[len(out)-1].Interface().(error); ok {
 		// convert the error into error string value
 		er = out[len(out)-1].Interface().(error).Error()
@@ -93,6 +97,7 @@ func (s *RPCServer) Run() {
 				}
 
 				// decode the data and pass it to execute
+				// 在服务器端反序列化请求信息，得到函数和传入的参数，保存到PRCdata结构中
 				decReq, err := dataserial.Decode(req)
 				if err != nil {
 					log.Printf("Error Decoding the Payload err: %v\n", err)

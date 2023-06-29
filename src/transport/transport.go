@@ -25,6 +25,7 @@ func (t *Transport) Send(data []byte) error {
 	// we will encode how much byte of data
 	// we are sending for this request.
 	buf := make([]byte, headerLen+len(data))
+	// 将 data 的长度编码为一个 4 字节的大端整数，并将其写入 buf 的前 headerLen 个字节位置
 	binary.BigEndian.PutUint32(buf[:headerLen], uint32(len(data)))
 	copy(buf[headerLen:], data)
 	_, err := t.conn.Write(buf)
@@ -37,10 +38,12 @@ func (t *Transport) Send(data []byte) error {
 // Read TLV Data sent over the wire
 func (t *Transport) Read() ([]byte, error) {
 	header := make([]byte, headerLen)
+	// 从 t.conn 中读取 headerLen 个字节的数据并存储到 header 中
 	_, err := io.ReadFull(t.conn, header)
 	if err != nil {
 		return nil, err
 	}
+	// 将大端表示的 header （数据长度）转化为无符号整型
 	dataLen := binary.BigEndian.Uint32(header)
 	data := make([]byte, dataLen)
 	_, err = io.ReadFull(t.conn, data)
